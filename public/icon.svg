@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="55%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect x="28" y="28" width="456" height="456" rx="92" fill="none" stroke="#38BDF8" stroke-width="6" stroke-opacity="0.35" />
+  <rect x="56" y="116" width="400" height="210" rx="28" fill="#FFFFFF" />
+  <text x="256" y="218" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="84" letter-spacing="-2">
+    <tspan fill="#0F172A">Auto</tspan><tspan fill="#E11D48">365</tspan>
+  </text>
+  <rect x="96" y="246" width="320" height="6" rx="3" fill="url(#redGrad)" />
+  <text x="256" y="294" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="30" fill="#0F172A" letter-spacing="5">
+    MY DINH - HA NOI
+  </text>
+  <rect x="116" y="358" width="280" height="54" rx="27" fill="url(#redGrad)" />
+  <text x="256" y="394" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="26" fill="#FFFFFF" letter-spacing="2">
+    365MD ERP APP
+  </text>
+</svg>

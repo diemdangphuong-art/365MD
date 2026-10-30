@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "Auto365 Mỹ Đình (365MD ERP)",
+  "short_name": "365MD ERP",
+  "description": "Hệ thống Quản trị Kho vận, Bán hàng, Daily Report Sale & Tài chính Auto365 Mỹ Đình.",
+  "theme_color": "#0F172A",
+  "background_color": "#D8EEFE",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

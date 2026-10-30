@@ -1,0 +1,532 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // 0. GLOBAL SAFETY NET (Default-Deny Catch-All)
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // 1. HARDENED PRIMITIVES & IDENTITY HELPERS
+    // =========================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'DiemDangPhuong@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'DiemDangPhuong@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // =========================================================================
+    // 2. GRANULAR RBAC RELATIONAL HELPERS (Evaluated AFTER static checks)
+    // =========================================================================
+    function canEditInventory() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/staff_public/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.permInventoryEdit == true
+      );
+    }
+
+    function canApproveStock() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/staff_public/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.permStockApprove == true
+      );
+    }
+
+    function canCreateSales() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/staff_public/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.permSalesCreate == true
+      );
+    }
+
+    function canRefundSales() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/staff_public/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.permSalesRefund == true
+      );
+    }
+
+    function canManageStaff() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/staff_public/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.status == 'active' &&
+        get(/databases/$(database)/documents/staff_public/$(request.auth.uid)).data.permStaffManage == true
+      );
+    }
+
+    // =========================================================================
+    // 3. SCHEMA VALIDATION BLUEPRINTS (Anti-Update-Gap)
+    // =========================================================================
+    function isValidAdminEntry(data) {
+      return data.keys().hasAll(['uid', 'orgId', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'orgId', 'grantedBy', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        isValidId(data.grantedBy) &&
+        data.grantedBy == request.auth.uid &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidStaffPublicProfile(data) {
+      return data.keys().hasAll([
+          'staffId', 'orgId', 'username', 'fullName', 'employeeCode', 'role', 'department',
+          'branch', 'status', 'permInventoryView', 'permInventoryEdit',
+          'permStockApprove', 'permSalesCreate', 'permSalesRefund',
+          'permReportExport', 'permStaffManage', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'staffId', 'orgId', 'username', 'passwordPlain', 'fullName', 'employeeCode', 'role', 'department',
+          'branch', 'status',
+          'permDashboardView', 'permDailyReportView', 'permSalesCreate',
+          'permInventoryView', 'permCustomersView', 'permFinanceView',
+          'permCostPriceView', 'permCustomerListView', 'permSalesReportView',
+          'permNetRevenueView', 'permGrossProfitView', 'permNetProfitView',
+          'permSalesViewAll', 'permDailyReportViewAll', 'permSalesDiscountEdit',
+          'permCustomerPhoneView', 'permCustomerEdit', 'permFinanceCashbook',
+          'permFinanceFixedExpenses', 'permInventoryImportExport',
+          'permInventoryEdit', 'permStockApprove', 'permSalesRefund',
+          'permReportExport', 'permStaffManage',
+          'monthlyKpiVnd', 'kpiWorkingDays', 'kpiMonthStr',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.staffId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.username is string && data.username.size() >= 3 && data.username.size() <= 32 &&
+        data.username.matches('^[a-zA-Z0-9_.\\-]+$') &&
+        (!('passwordPlain' in data) || (data.passwordPlain is string && data.passwordPlain.size() >= 4 && data.passwordPlain.size() <= 64)) &&
+        data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+        data.employeeCode is string && data.employeeCode.size() >= 2 && data.employeeCode.size() <= 32 &&
+        data.role is string && data.role.size() <= 32 &&
+        data.role in ['admin', 'warehouse_manager', 'sales_lead', 'cashier', 'auditor'] &&
+        data.department is string && data.department.size() <= 64 &&
+        data.branch is string && data.branch.size() >= 1 && data.branch.size() <= 80 &&
+        data.status is string && data.status.size() <= 20 &&
+        data.status in ['active', 'suspended', 'offboarded'] &&
+        data.permInventoryView is bool &&
+        data.permInventoryEdit is bool &&
+        data.permStockApprove is bool &&
+        data.permSalesCreate is bool &&
+        data.permSalesRefund is bool &&
+        data.permReportExport is bool &&
+        data.permStaffManage is bool &&
+        (!('monthlyKpiVnd' in data) || (data.monthlyKpiVnd is number && data.monthlyKpiVnd >= 0 && data.monthlyKpiVnd <= 50000000000)) &&
+        (!('kpiWorkingDays' in data) || (data.kpiWorkingDays is number && data.kpiWorkingDays >= 1 && data.kpiWorkingDays <= 31)) &&
+        (!('kpiMonthStr' in data) || (data.kpiMonthStr is string && data.kpiMonthStr.size() >= 4 && data.kpiMonthStr.size() <= 16)) &&
+        (!('permDashboardView' in data) || data.permDashboardView is bool) &&
+        (!('permDailyReportView' in data) || data.permDailyReportView is bool) &&
+        (!('permCustomersView' in data) || data.permCustomersView is bool) &&
+        (!('permFinanceView' in data) || data.permFinanceView is bool) &&
+        (!('permCostPriceView' in data) || data.permCostPriceView is bool) &&
+        (!('permCustomerListView' in data) || data.permCustomerListView is bool) &&
+        (!('permSalesReportView' in data) || data.permSalesReportView is bool) &&
+        (!('permNetRevenueView' in data) || data.permNetRevenueView is bool) &&
+        (!('permGrossProfitView' in data) || data.permGrossProfitView is bool) &&
+        (!('permNetProfitView' in data) || data.permNetProfitView is bool) &&
+        (!('permSalesViewAll' in data) || data.permSalesViewAll is bool) &&
+        (!('permDailyReportViewAll' in data) || data.permDailyReportViewAll is bool) &&
+        (!('permSalesDiscountEdit' in data) || data.permSalesDiscountEdit is bool) &&
+        (!('permCustomerPhoneView' in data) || data.permCustomerPhoneView is bool) &&
+        (!('permCustomerEdit' in data) || data.permCustomerEdit is bool) &&
+        (!('permFinanceCashbook' in data) || data.permFinanceCashbook is bool) &&
+        (!('permFinanceFixedExpenses' in data) || data.permFinanceFixedExpenses is bool) &&
+        (!('permInventoryImportExport' in data) || data.permInventoryImportExport is bool);
+    }
+
+    function isValidStaffPrivateInfo(data) {
+      return data.keys().hasAll([
+          'staffId', 'orgId', 'email', 'phone', 'baseSalaryVnd',
+          'contractType', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'staffId', 'orgId', 'email', 'phone', 'baseSalaryVnd',
+          'contractType', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.staffId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+        data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 24 &&
+        data.baseSalaryVnd is number && data.baseSalaryVnd >= 0 && data.baseSalaryVnd <= 500000000 &&
+        data.contractType is string && data.contractType.size() <= 32 &&
+        data.contractType in ['Toàn thời gian', 'Bán thời gian', 'Thử việc'] &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'productId', 'orgId', 'sku', 'name', 'supplier', 'category', 'unit',
+          'warehouseZone', 'batchNumber', 'costPriceVnd', 'sellPriceVnd',
+          'stockQty', 'minStockThreshold', 'status', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'productId', 'orgId', 'sku', 'name', 'supplier', 'category', 'unit',
+          'warehouseZone', 'batchNumber', 'costPriceVnd', 'sellPriceVnd',
+          'stockQty', 'minStockThreshold', 'paymentMethod', 'status', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.productId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.sku is string && data.sku.size() <= 80 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.supplier is string && data.supplier.size() <= 100 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 64 &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24 &&
+        data.warehouseZone is string && data.warehouseZone.size() >= 1 && data.warehouseZone.size() <= 64 &&
+        data.batchNumber is string && data.batchNumber.size() >= 1 && data.batchNumber.size() <= 40 &&
+        data.costPriceVnd is number && data.costPriceVnd >= 0 && data.costPriceVnd <= 10000000000 &&
+        data.sellPriceVnd is number && data.sellPriceVnd >= 0 && data.sellPriceVnd <= 10000000000 &&
+        data.stockQty is number && data.stockQty >= -100000 && data.stockQty <= 1000000 &&
+        data.minStockThreshold is number && data.minStockThreshold >= 0 && data.minStockThreshold <= 100000 &&
+        (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 32)) &&
+        data.status is string && data.status.size() <= 24 &&
+        data.status in ['active', 'low_stock', 'out_of_stock', 'discontinued'] &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSupplierCatalogItem(data) {
+      return data.keys().hasAll(['supplierId', 'orgId', 'name', 'phone', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'supplierId', 'orgId', 'name', 'phone',
+          'address', 'companyName', 'taxCode', 'hasContract', 'contractDate',
+          'updatedAt'
+        ]) &&
+        isValidId(data.supplierId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.phone is string && data.phone.size() <= 32 &&
+        (!('address' in data) || (data.address is string && data.address.size() <= 250)) &&
+        (!('companyName' in data) || (data.companyName is string && data.companyName.size() <= 200)) &&
+        (!('taxCode' in data) || (data.taxCode is string && data.taxCode.size() <= 64)) &&
+        (!('hasContract' in data) || (data.hasContract is string && data.hasContract in ['Có', 'Không'])) &&
+        (!('contractDate' in data) || (data.contractDate is string && data.contractDate.size() <= 40)) &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+
+    function isValidStockMovement(data) {
+      return data.keys().hasAll([
+          'movementId', 'orgId', 'movementCode', 'productId', 'productSku',
+          'productName', 'type', 'quantityDelta', 'stockBefore', 'stockAfter',
+          'unitValueVnd', 'partnerOrReason', 'status', 'createdBy',
+          'createdByName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'movementId', 'orgId', 'movementCode', 'productId', 'productSku',
+          'productName', 'type', 'quantityDelta', 'stockBefore', 'stockAfter',
+          'unitValueVnd', 'partnerOrReason', 'status', 'createdBy',
+          'createdByName', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.movementId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.movementCode is string && data.movementCode.size() >= 3 && data.movementCode.size() <= 32 &&
+        isValidId(data.productId) &&
+        data.productSku is string && data.productSku.size() >= 1 && data.productSku.size() <= 80 &&
+        data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 120 &&
+        data.type is string && data.type.size() <= 24 &&
+        data.type in ['inbound', 'outbound', 'adjustment', 'sale_deduction'] &&
+        data.quantityDelta is number && data.quantityDelta >= -100000 && data.quantityDelta <= 100000 &&
+        data.stockBefore is number && data.stockBefore >= -100000 && data.stockBefore <= 1000000 &&
+        data.stockAfter is number && data.stockAfter >= -100000 && data.stockAfter <= 1000000 &&
+        data.unitValueVnd is number && data.unitValueVnd >= 0 && data.unitValueVnd <= 10000000000 &&
+        data.partnerOrReason is string && data.partnerOrReason.size() >= 1 && data.partnerOrReason.size() <= 160 &&
+        data.status is string && data.status.size() <= 24 &&
+        data.status in ['pending', 'completed', 'cancelled'] &&
+        isValidId(data.createdBy) &&
+        data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 100 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSalesOrder(data) {
+      return data.keys().hasAll([
+          'orderId', 'orgId', 'invoiceNumber', 'customerName', 'customerTaxOrRefCode',
+          'channel', 'paymentMethod', 'primaryProductId', 'itemsSummary',
+          'totalUnits', 'subtotalVnd', 'discountVnd', 'vatVnd', 'totalRevenueVnd',
+          'totalCostVnd', 'grossProfitVnd', 'status', 'cashierId', 'cashierName',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'orderId', 'orgId', 'invoiceNumber', 'customerName', 'customerTaxOrRefCode',
+          'channel', 'paymentMethod', 'primaryProductId', 'itemsSummary',
+          'totalUnits', 'subtotalVnd', 'discountVnd', 'vatVnd', 'totalRevenueVnd',
+          'totalCostVnd', 'grossProfitVnd', 'status', 'cashierId', 'cashierName',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.orderId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.invoiceNumber is string && data.invoiceNumber.size() >= 1 && data.invoiceNumber.size() <= 64 &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 160 &&
+        data.customerTaxOrRefCode is string && data.customerTaxOrRefCode.size() >= 1 && data.customerTaxOrRefCode.size() <= 80 &&
+        data.channel is string && data.channel.size() >= 1 && data.channel.size() <= 100 &&
+        data.paymentMethod is string && data.paymentMethod.size() >= 1 && data.paymentMethod.size() <= 64 &&
+        isValidId(data.primaryProductId) &&
+        data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 500 &&
+        data.totalUnits is number && data.totalUnits >= 1 && data.totalUnits <= 1000000 &&
+        data.subtotalVnd is number && data.subtotalVnd >= 0 && data.subtotalVnd <= 50000000000 &&
+        data.discountVnd is number && data.discountVnd >= 0 && data.discountVnd <= 50000000000 &&
+        data.vatVnd is number && data.vatVnd >= 0 && data.vatVnd <= 50000000000 &&
+        data.totalRevenueVnd is number && data.totalRevenueVnd >= 0 && data.totalRevenueVnd <= 50000000000 &&
+        data.totalCostVnd is number && data.totalCostVnd >= 0 && data.totalCostVnd <= 50000000000 &&
+        data.grossProfitVnd is number && data.grossProfitVnd >= -50000000000 && data.grossProfitVnd <= 50000000000 &&
+        data.status is string && data.status in ['pending', 'completed', 'refunded'] &&
+        isValidId(data.cashierId) &&
+        data.cashierName is string && data.cashierName.size() >= 1 && data.cashierName.size() <= 120;
+    }
+
+    function isValidCashVoucher(data) {
+      return data.keys().hasAll([
+          'voucherId', 'orgId', 'voucherCode', 'fundType',
+          'category', 'amountVnd', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.voucherId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.voucherCode is string && data.voucherCode.size() >= 1 && data.voucherCode.size() <= 64 &&
+        data.fundType is string && data.fundType.size() <= 64 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 120 &&
+        data.amountVnd is number && data.amountVnd >= 0 && data.amountVnd <= 50000000000 &&
+        isValidId(data.createdBy) &&
+        data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll([
+          'customerId', 'orgId', 'customerCode', 'name', 'phone',
+          'customerType', 'vehicleOrGroup', 'address', 'note',
+          'branch', 'createdDateStr', 'lastTransactionDateStr',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'customerId', 'orgId', 'customerCode', 'name', 'phone',
+          'customerType', 'vehicleOrGroup', 'address', 'note',
+          'branch', 'createdDateStr', 'lastTransactionDateStr',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.customerId) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD' &&
+        data.customerCode is string && data.customerCode.size() >= 1 && data.customerCode.size() <= 64 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 40 &&
+        data.customerType is string && data.customerType.size() <= 40 &&
+        data.vehicleOrGroup is string && data.vehicleOrGroup.size() >= 1 && data.vehicleOrGroup.size() <= 120 &&
+        data.address is string && data.address.size() >= 1 && data.address.size() <= 240 &&
+        data.note is string && data.note.size() >= 1 && data.note.size() <= 300 &&
+        data.branch is string && data.branch.size() >= 1 && data.branch.size() <= 100 &&
+        data.createdDateStr is string && data.createdDateStr.size() >= 1 && data.createdDateStr.size() <= 40 &&
+        data.lastTransactionDateStr is string && data.lastTransactionDateStr.size() >= 1 && data.lastTransactionDateStr.size() <= 40 &&
+        isValidId(data.createdBy);
+    }
+
+    function isValidWorkspaceSyncDoc(data) {
+      return data.keys().hasAll(['orgId']) &&
+        data.orgId is string && data.orgId.size() <= 16 && data.orgId == '365MD';
+    }
+
+    // =========================================================================
+    // 4. COLLECTION MATCH BLOCKS (Exhaustive Coverage)
+    // =========================================================================
+
+    // --- /admins/{adminId} ---
+    match /admins/{adminId} {
+      allow get: if isVerifiedUser() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if isVerifiedUser() && (isBootstrappedAdmin() || existing().uid == request.auth.uid) && existing().orgId == '365MD';
+      allow create: if isVerifiedUser() && isValidId(adminId) &&
+        isValidAdminEntry(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().createdAt == request.time &&
+        isAdmin();
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(adminId) && isAdmin();
+    }
+
+    // --- /staff_public/{staffId} ---
+    match /staff_public/{staffId} {
+      allow get: if isValidId(staffId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(staffId) &&
+        isValidStaffPublicProfile(incoming()) &&
+        incoming().staffId == staffId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(staffId) &&
+        isValidStaffPublicProfile(incoming()) &&
+        incoming().staffId == existing().staffId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(staffId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /staff_private/{staffId} (PII Isolated Collection) ---
+    match /staff_private/{staffId} {
+      allow get: if isVerifiedUser() && isValidId(staffId) &&
+        existing().orgId == '365MD' &&
+        (request.auth.uid == staffId || isAdmin());
+      allow list: if isVerifiedUser() &&
+        existing().orgId == '365MD' &&
+        (isBootstrappedAdmin() || existing().staffId == request.auth.uid);
+      allow create: if isVerifiedUser() && isValidId(staffId) &&
+        isValidStaffPrivateInfo(incoming()) &&
+        incoming().staffId == staffId &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/staff_public/$(staffId)) && (
+          isAdmin() || canManageStaff() ||
+          (request.auth.uid == staffId && incoming().baseSalaryVnd == 0)
+        );
+      allow update: if isVerifiedUser() && isValidId(staffId) &&
+        isValidStaffPrivateInfo(incoming()) &&
+        incoming().staffId == existing().staffId &&
+        incoming().orgId == existing().orgId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (canManageStaff() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'email', 'phone', 'baseSalaryVnd', 'contractType', 'updatedAt'
+            ])
+          ) ||
+          (request.auth.uid == staffId &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(staffId) && isAdmin();
+    }
+
+    // --- /products/{productId} (Universal Real-Time Warehouse Sync Across Mobile & PC) ---
+    match /products/{productId} {
+      allow get: if isValidId(productId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().productId == productId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().productId == existing().productId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(productId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /suppliers/{supplierId} (Universal Real-Time Supplier Catalog Sync Across Mobile & PC) ---
+    match /suppliers/{supplierId} {
+      allow get: if isValidId(supplierId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(supplierId) &&
+        isValidSupplierCatalogItem(incoming()) &&
+        incoming().supplierId == supplierId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(supplierId) &&
+        isValidSupplierCatalogItem(incoming()) &&
+        incoming().supplierId == existing().supplierId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(supplierId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /stock_movements/{movementId} (Universal Real-Time Stock Movements Sync From Staff to Admin) ---
+    match /stock_movements/{movementId} {
+      allow get: if isValidId(movementId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(movementId) &&
+        isValidStockMovement(incoming()) &&
+        incoming().movementId == movementId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(movementId) &&
+        isValidStockMovement(incoming()) &&
+        incoming().movementId == existing().movementId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(movementId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /sales_orders/{orderId} (Universal Real-Time Sales Orders Sync From Staff to Admin) ---
+    match /sales_orders/{orderId} {
+      allow get: if isValidId(orderId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(orderId) &&
+        isValidSalesOrder(incoming()) &&
+        incoming().orderId == orderId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(orderId) &&
+        isValidSalesOrder(incoming()) &&
+        incoming().orderId == existing().orderId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(orderId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /cash_vouchers/{voucherId} (Universal Real-Time Cashbook Sync From Staff to Admin) ---
+    match /cash_vouchers/{voucherId} {
+      allow get: if isValidId(voucherId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(voucherId) &&
+        isValidCashVoucher(incoming()) &&
+        incoming().voucherId == voucherId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(voucherId) &&
+        isValidCashVoucher(incoming()) &&
+        incoming().voucherId == existing().voucherId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(voucherId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /customers/{customerId} (Universal Real-Time Customer Directory Sync From Staff to Admin) ---
+    match /customers/{customerId} {
+      allow get: if isValidId(customerId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(customerId) &&
+        isValidCustomer(incoming()) &&
+        incoming().customerId == customerId &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(customerId) &&
+        isValidCustomer(incoming()) &&
+        incoming().customerId == existing().customerId &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(customerId) && (isAdmin() || existing().orgId == '365MD');
+    }
+
+    // --- /workspace_sync/{syncDocId} (Real-Time Sync for Daily Reports, Order Work Details, KPI, Finance & Customer Deletion Approval) ---
+    match /workspace_sync/{syncDocId} {
+      allow get: if isValidId(syncDocId) && existing().orgId == '365MD';
+      allow list: if existing().orgId == '365MD';
+      allow create: if isValidId(syncDocId) &&
+        isValidWorkspaceSyncDoc(incoming()) &&
+        incoming().orgId == '365MD';
+      allow update: if isValidId(syncDocId) &&
+        isValidWorkspaceSyncDoc(incoming()) &&
+        incoming().orgId == '365MD';
+      allow delete: if isValidId(syncDocId) && (isAdmin() || existing().orgId == '365MD');
+    }
+  }
+}

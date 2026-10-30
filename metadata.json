@@ -1,0 +1,6 @@
+{
+  "name": "365MD — Quản trị Kho, Bán hàng & Phân quyền Doanh nghiệp",
+  "description": "Hệ thống quản trị kho vận, bán hàng đa kênh, báo cáo doanh thu thời gian thực, quản lý nhân sự phân quyền chi tiết (RBAC) và xuất báo cáo định kỳ PDF chuẩn doanh nghiệp cho thương hiệu 365MD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

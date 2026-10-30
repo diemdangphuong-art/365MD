@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      (function () {
+        try {
+          var currentFetch = window.fetch ? window.fetch.bind(window) : undefined;
+          if (currentFetch) {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function () {
+                return currentFetch;
+              },
+              set: function (fn) {
+                if (typeof fn === 'function') {
+                  currentFetch = fn;
+                }
+              },
+            });
+          }
+        } catch (_e) {
+          // Ignore if non-configurable in this frame
+        }
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var msg = String((event && event.message) || '');
+            var filename = String((event && event.filename) || '');
+            if (
+              msg.indexOf('Cannot set property fetch') !== -1 ||
+              filename.indexOf('chrome-extension://') !== -1
+            ) {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+              return false;
+            }
+          },
+          true
+        );
+
+        try {
+          // Polyfill tương thích trình duyệt trên PC Windows 7 (Chrome 87-109, Edge 109, Cốc Cốc, Firefox ESR)
+          if (!Object.hasOwn) {
+            Object.hasOwn = function (obj, prop) {
+              return Object.prototype.hasOwnProperty.call(obj, prop);
+            };
+          }
+          if (!Array.prototype.at) {
+            Array.prototype.at = function (n) {
+              n = Math.trunc(n) || 0;
+              if (n < 0) n += this.length;
+              if (n < 0 || n >= this.length) return undefined;
+              return this[n];
+            };
+          }
+          if (!String.prototype.at) {
+            String.prototype.at = function (n) {
+              n = Math.trunc(n) || 0;
+              if (n < 0) n += this.length;
+              if (n < 0 || n >= this.length) return undefined;
+              return this.charAt(n);
+            };
+          }
+          if (typeof window.structuredClone !== 'function') {
+            window.structuredClone = function (val) {
+              return JSON.parse(JSON.stringify(val));
+            };
+          }
+        } catch (_polyErr) {
+          // Ignore polyfill errors
+        }
+
+        try {
+          // Luôn gỡ bỏ Service Worker cũ lưu đệm giao diện cũ trên PC (quanly365md.com) & Điện thoại (iOS/Android)
+          var SW_SECURITY_VER = '365md_security_lockdown_v25';
+          var hadController = Boolean(navigator.serviceWorker && navigator.serviceWorker.controller);
+
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              var unregisteredAny = false;
+              var promises = [];
+              for (var i = 0; i < regs.length; i++) {
+                unregisteredAny = true;
+                promises.push(regs[i].unregister());
+              }
+              Promise.all(promises).then(function () {
+                if ((unregisteredAny || hadController) && window.sessionStorage && !sessionStorage.getItem(SW_SECURITY_VER)) {
+                  sessionStorage.setItem(SW_SECURITY_VER, '1');
+                  window.location.reload();
+                }
+              });
+            });
+          }
+
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              for (var j = 0; j < names.length; j++) {
+                caches.delete(names[j]);
+              }
+            });
+          }
+
+          if (window.localStorage) {
+            // Luôn xóa phiên đăng nhập tự động & mật khẩu lưu đệm khi mở trình duyệt
+            localStorage.removeItem('365md_v5_kiotviet_active_staff_id');
+            localStorage.removeItem('365md_auto_save_login_session');
+            localStorage.removeItem('365md_v8_kiotviet_credentials');
+            localStorage.removeItem('365md_v7_kiotviet_credentials');
+            localStorage.removeItem('365md_v6_kiotviet_credentials');
+
+            if (localStorage.getItem('365md_sw_ver') !== SW_SECURITY_VER) {
+              localStorage.setItem('365md_sw_ver', SW_SECURITY_VER);
+              localStorage.removeItem('365md_v5_kiotviet_products');
+              localStorage.removeItem('365md_v7_kiotviet_products');
+              localStorage.removeItem('365md_v6_kiotviet_staff_pub');
+              localStorage.removeItem('365md_v9_kiotviet_staff_pub');
+              localStorage.removeItem('365md_v10_kiotviet_staff_pub');
+              localStorage.removeItem('365md_v11_kiotviet_staff_pub');
+              localStorage.removeItem('365md_v12_kiotviet_staff_pub');
+            }
+          }
+        } catch (_err) {
+          // Ignore storage/SW errors
+        }
+      })();
+    </script>
+    <title>365MD — Quản trị Kho, Bán hàng & Phân quyền Doanh nghiệp</title>
+    <meta name="description" content="Hệ thống quản trị kho vận, bán hàng đa kênh, báo cáo doanh thu thời gian thực, quản lý nhân sự phân quyền chi tiết (RBAC) và xuất báo cáo định kỳ PDF chuẩn doanh nghiệp cho thương hiệu 365MD." />
+    <meta property="og:title" content="365MD — Quản trị Kho, Bán hàng & Phân quyền Doanh nghiệp" />
+    <meta property="og:description" content="Hệ thống quản trị kho vận, bán hàng đa kênh, báo cáo doanh thu thời gian thực, quản lý nhân sự phân quyền chi tiết (RBAC) và xuất báo cáo định kỳ PDF chuẩn doanh nghiệp cho thương hiệu 365MD." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#D8EEFE" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="365MD ERP" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#0F172A] selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

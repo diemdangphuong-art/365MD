@@ -1,0 +1,935 @@
+{
+  "entities": {
+    "AdminEntry": {
+      "title": "AdminEntry",
+      "description": "Trusted administrator registry entry keyed by user UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the administrator."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "grantedBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the admin who granted access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        }
+      },
+      "required": ["uid", "orgId", "grantedBy", "createdAt"]
+    },
+    "StaffPublicProfile": {
+      "title": "StaffPublicProfile",
+      "description": "Non-PII staff account profile and detailed RBAC permission matrix for 365MD employees.",
+      "type": "object",
+      "properties": {
+        "staffId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique staff identifier."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_.\\-]+$",
+          "description": "Account login username."
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Full display name of the employee."
+        },
+        "employeeCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 16,
+          "pattern": "^NV-[0-9]{3,6}$",
+          "description": "Employee code formatted as NV-XXX."
+        },
+        "role": {
+          "type": "string",
+          "maxLength": 32,
+          "enum": ["admin", "warehouse_manager", "sales_lead", "cashier", "auditor"],
+          "description": "Assigned functional role in 365MD."
+        },
+        "department": {
+          "type": "string",
+          "maxLength": 64,
+          "enum": ["Ban Giám Đốc", "Kho Vận", "Kinh Doanh POS", "Kế Toán & Kiểm Toán"],
+          "description": "Assigned department."
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Assigned branch or warehouse facility."
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["active", "suspended", "offboarded"],
+          "description": "Employment status."
+        },
+        "permInventoryView": {
+          "type": "boolean",
+          "description": "Permission to view warehouse inventory."
+        },
+        "permInventoryEdit": {
+          "type": "boolean",
+          "description": "Permission to create or edit SKU items and stock."
+        },
+        "permStockApprove": {
+          "type": "boolean",
+          "description": "Permission to approve inbound/outbound stock slips."
+        },
+        "permSalesCreate": {
+          "type": "boolean",
+          "description": "Permission to create POS/B2B sales orders."
+        },
+        "permSalesRefund": {
+          "type": "boolean",
+          "description": "Permission to process order refunds."
+        },
+        "permReportExport": {
+          "type": "boolean",
+          "description": "Permission to view financial analytics and export periodic PDF reports."
+        },
+        "permStaffManage": {
+          "type": "boolean",
+          "description": "Permission to manage staff accounts and RBAC permissions."
+        },
+        "monthlyKpiVnd": {
+          "type": "number",
+          "description": "Monthly sales KPI target in VND assigned by Admin."
+        },
+        "kpiWorkingDays": {
+          "type": "number",
+          "description": "Number of working days in the month to achieve KPI."
+        },
+        "kpiMonthStr": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Target YYYY-MM month string for the KPI configuration."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the creator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "staffId",
+        "orgId",
+        "username",
+        "fullName",
+        "employeeCode",
+        "role",
+        "department",
+        "branch",
+        "status",
+        "permInventoryView",
+        "permInventoryEdit",
+        "permStockApprove",
+        "permSalesCreate",
+        "permSalesRefund",
+        "permReportExport",
+        "permStaffManage",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StaffPrivateInfo": {
+      "title": "StaffPrivateInfo",
+      "description": "Isolated PII and compensation record for a staff member, accessible strictly to the owner or admin.",
+      "type": "object",
+      "properties": {
+        "staffId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Matches staff_public document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "description": "Work or personal email address (PII)."
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 24,
+          "description": "Phone number (PII)."
+        },
+        "baseSalaryVnd": {
+          "type": "number",
+          "description": "Monthly base compensation in VND."
+        },
+        "contractType": {
+          "type": "string",
+          "maxLength": 32,
+          "enum": ["Toàn thời gian", "Bán thời gian", "Thử việc"],
+          "description": "Employment contract classification."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the creator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "staffId",
+        "orgId",
+        "email",
+        "phone",
+        "baseSalaryVnd",
+        "contractType",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Warehouse SKU item managed in 365MD inventory.",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique product document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "sku": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Stock Keeping Unit code from KiotViet."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Product commercial name."
+        },
+        "supplier": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Supplier or distributor name."
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Product category."
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Unit of measure."
+        },
+        "warehouseZone": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Storage zone in 365MD warehouse."
+        },
+        "batchNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Lot or batch code."
+        },
+        "costPriceVnd": {
+          "type": "number",
+          "description": "Unit cost price in VND."
+        },
+        "sellPriceVnd": {
+          "type": "number",
+          "description": "Unit selling price in VND."
+        },
+        "stockQty": {
+          "type": "number",
+          "description": "Current on-hand quantity."
+        },
+        "minStockThreshold": {
+          "type": "number",
+          "description": "Reorder alert threshold."
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 24,
+          "enum": ["active", "low_stock", "out_of_stock", "discontinued"],
+          "description": "Computed stock availability status."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the user who created the product."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "productId",
+        "orgId",
+        "sku",
+        "name",
+        "supplier",
+        "category",
+        "unit",
+        "warehouseZone",
+        "batchNumber",
+        "costPriceVnd",
+        "sellPriceVnd",
+        "stockQty",
+        "minStockThreshold",
+        "status",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Warehouse inbound, outbound, adjustment, or sales stock ledger record.",
+      "type": "object",
+      "properties": {
+        "movementId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique movement ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "movementCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "description": "Human-readable slip number (e.g., NK-2026-001)."
+        },
+        "productId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Referenced Product ID."
+        },
+        "productSku": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Snapshot of Product SKU."
+        },
+        "productName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Snapshot of Product Name."
+        },
+        "type": {
+          "type": "string",
+          "maxLength": 24,
+          "enum": ["inbound", "outbound", "adjustment", "sale_deduction"],
+          "description": "Movement classification."
+        },
+        "quantityDelta": {
+          "type": "number",
+          "description": "Signed quantity change."
+        },
+        "stockBefore": {
+          "type": "number",
+          "description": "Stock level prior to movement."
+        },
+        "stockAfter": {
+          "type": "number",
+          "description": "Stock level after movement."
+        },
+        "unitValueVnd": {
+          "type": "number",
+          "description": "Unit valuation in VND."
+        },
+        "partnerOrReason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Supplier name, recipient facility, or audit reason."
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 24,
+          "enum": ["pending", "completed", "cancelled"],
+          "description": "Processing status (completed/cancelled are terminal)."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the operator."
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display name of the operator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "movementId",
+        "orgId",
+        "movementCode",
+        "productId",
+        "productSku",
+        "productName",
+        "type",
+        "quantityDelta",
+        "stockBefore",
+        "stockAfter",
+        "unitValueVnd",
+        "partnerOrReason",
+        "status",
+        "createdBy",
+        "createdByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SalesOrder": {
+      "title": "SalesOrder",
+      "description": "POS or B2B sales invoice and real-time revenue ledger record.",
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique order document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "description": "Formatted invoice code (e.g., HD-365MD-1001)."
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Customer or partner name."
+        },
+        "customerTaxOrRefCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32,
+          "description": "License plate, tax ID, or customer reference code."
+        },
+        "channel": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Sales distribution channel."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "maxLength": 40,
+          "enum": [
+            "Chuyển khoản QR",
+            "Tiền mặt",
+            "Công nợ Đại lý 30 ngày",
+            "Thẻ POS"
+          ],
+          "description": "Payment settlement method."
+        },
+        "primaryProductId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Primary product ID referenced in this order."
+        },
+        "itemsSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Concise summary of line items and quantities."
+        },
+        "totalUnits": {
+          "type": "number",
+          "description": "Total units sold in the order."
+        },
+        "subtotalVnd": {
+          "type": "number",
+          "description": "Pre-tax, pre-discount amount in VND."
+        },
+        "discountVnd": {
+          "type": "number",
+          "description": "Discount amount in VND."
+        },
+        "vatVnd": {
+          "type": "number",
+          "description": "VAT tax amount in VND."
+        },
+        "totalRevenueVnd": {
+          "type": "number",
+          "description": "Net revenue collected in VND."
+        },
+        "totalCostVnd": {
+          "type": "number",
+          "description": "Total COGS in VND."
+        },
+        "grossProfitVnd": {
+          "type": "number",
+          "description": "Realized gross profit in VND."
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 24,
+          "enum": ["pending", "completed", "refunded"],
+          "description": "Order settlement status."
+        },
+        "cashierId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the staff member who created the order."
+        },
+        "cashierName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Name of the staff member who created the order."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "orderId",
+        "orgId",
+        "invoiceNumber",
+        "customerName",
+        "customerTaxOrRefCode",
+        "channel",
+        "paymentMethod",
+        "primaryProductId",
+        "itemsSummary",
+        "totalUnits",
+        "subtotalVnd",
+        "discountVnd",
+        "vatVnd",
+        "totalRevenueVnd",
+        "totalCostVnd",
+        "grossProfitVnd",
+        "status",
+        "cashierId",
+        "cashierName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CashVoucher": {
+      "title": "CashVoucher",
+      "description": "Cash or bank receipt (Phiếu thu) and payment (Phiếu chi) ledger record for 365MD financial management.",
+      "type": "object",
+      "properties": {
+        "voucherId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique voucher document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "voucherCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "description": "Formatted voucher code (e.g., PT-365MD-0001 or PC-365MD-0001)."
+        },
+        "voucherType": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["receipt", "payment"],
+          "description": "Voucher type: receipt (Thu tiền) or payment (Chi tiền)."
+        },
+        "fundType": {
+          "type": "string",
+          "maxLength": 32,
+          "enum": ["Tiền mặt", "Ngân hàng / QR"],
+          "description": "Financial fund account."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Receipt or payment classification."
+        },
+        "amountVnd": {
+          "type": "number",
+          "description": "Positive transaction amount in VND."
+        },
+        "counterpartyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Customer, supplier, or employee name."
+        },
+        "referenceDoc": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Related invoice or stock slip code."
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Detailed financial explanation."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the creator."
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display name of the creator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "voucherId",
+        "orgId",
+        "voucherCode",
+        "voucherType",
+        "fundType",
+        "category",
+        "amountVnd",
+        "counterpartyName",
+        "referenceDoc",
+        "note",
+        "createdBy",
+        "createdByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer, vehicle owner, or partner garage/dealer record imported from KiotViet for 365MD.",
+      "type": "object",
+      "properties": {
+        "customerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique customer document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "customerCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "KiotViet customer code or vehicle license plate (e.g., KH000643 or 30F76393)."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Customer full name or partner garage name."
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Customer phone number (PII)."
+        },
+        "customerType": {
+          "type": "string",
+          "maxLength": 32,
+          "enum": ["Cá nhân", "Khách ĐL / Gara"],
+          "description": "Customer classification: retail vehicle owner or partner garage/dealer."
+        },
+        "vehicleOrGroup": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Vehicle model or KiotViet customer group (e.g., VinFast VF3, Ford Everest, Khách ĐL)."
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Customer address and ward (PII)."
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Additional vehicle or service notes."
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Branch where customer was registered."
+        },
+        "createdDateStr": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Formatted KiotViet registration date string."
+        },
+        "lastTransactionDateStr": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Formatted KiotViet last transaction date string."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the creator."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp."
+        }
+      },
+      "required": [
+        "customerId",
+        "orgId",
+        "customerCode",
+        "name",
+        "phone",
+        "customerType",
+        "vehicleOrGroup",
+        "address",
+        "note",
+        "branch",
+        "createdDateStr",
+        "lastTransactionDateStr",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SupplierCatalogItem": {
+      "title": "SupplierCatalogItem",
+      "description": "Supplier directory record in 365MD warehouse including address, company name, tax ID, contract status, and contract date.",
+      "type": "object",
+      "properties": {
+        "supplierId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique supplier document ID."
+        },
+        "orgId": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": ["365MD"],
+          "description": "Organization identifier."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Supplier display name."
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Supplier phone number."
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 250,
+          "description": "Supplier address (Địa chỉ nhà cung cấp)."
+        },
+        "companyName": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Company legal name (Tên công ty)."
+        },
+        "taxCode": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Tax identification number (Mã ST)."
+        },
+        "hasContract": {
+          "type": "string",
+          "enum": ["Có", "Không"],
+          "description": "Contract status: Có / Không."
+        },
+        "contractDate": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Contract signing date (Ngày ký hợp đồng)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Last saved date string."
+        }
+      },
+      "required": ["supplierId", "orgId", "name", "phone", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminEntry" },
+      "description": "Registry of trusted 365MD administrators."
+    },
+    "/staff_public/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffPublicProfile" },
+      "description": "Public staff profiles, usernames, and granular RBAC permissions for 365MD."
+    },
+    "/staff_private/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffPrivateInfo" },
+      "description": "Strictly isolated PII (email, phone, salary) for 365MD staff."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Warehouse SKU catalog, supplier info, and real-time stock quantities."
+    },
+    "/suppliers/{supplierId}": {
+      "schema": { "$ref": "#/entities/SupplierCatalogItem" },
+      "description": "Supplier directory with address, company name, tax ID, contract status, and contract date."
+    },
+    "/stock_movements/{movementId}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Warehouse inbound, outbound, adjustment, and sales deduction ledger."
+    },
+    "/sales_orders/{orderId}": {
+      "schema": { "$ref": "#/entities/SalesOrder" },
+      "description": "Real-time POS and B2B sales orders and revenue ledger."
+    },
+    "/cash_vouchers/{voucherId}": {
+      "schema": { "$ref": "#/entities/CashVoucher" },
+      "description": "Cash fund and bank account receipt (Phiếu thu) and payment (Phiếu chi) financial ledger."
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Customer directory imported from KiotViet for 365MD (vehicle owners and partner garages)."
+    }
+  }
+}
